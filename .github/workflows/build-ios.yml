@@ -1,0 +1,42 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve dependencies
+        working-directory: ios/PhoneBox
+        run: xcodebuild -resolvePackageDependencies -scheme PhoneBox 2>/dev/null || true
+
+      - name: Archive
+        working-directory: ios/PhoneBox
+        run: |
+          xcodebuild archive \
+            -scheme PhoneBox \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath ../../build/PhoneBox.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            SKIP_INSTALL=NO
+
+      - name: Package IPA
+        run: |
+          mkdir -p build/Payload
+          cp -r "build/PhoneBox.xcarchive/Products/Applications/PhoneBox.app" build/Payload/
+          cd build && zip -r PhoneBox.ipa Payload
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhoneBox-iOS
+          path: build/PhoneBox.ipa
+          retention-days: 30
